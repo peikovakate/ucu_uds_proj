@@ -54,26 +54,6 @@ class FeatureExtractor:
                     self.transitions_grid[b_cy, b_cx][2] += 1
                 #  transition quality
 
-        # for index, row in self.transitions.iterrows():
-        #     a_id = row.A_id     #id of A place
-        #     b_id = row.B_id     #id of B place
-        #     a_lat, a_long = self._get_coords(a_id) #coordinates of A place
-        #     b_lat, b_long = self._get_coords(b_id) #coordinates of B place
-        #     a_cy, a_cx = self._get_cell_indexes((a_lat, a_long))
-        #     b_cy, b_cx = self._get_cell_indexes((b_lat, b_long))
-        #     # print(index, a_id, b_id)
-        #     if a_cy != None and b_cy != None:
-        #         #  area popularity
-        #         self.transitions_grid[a_cy, a_cx][0] += 1
-        #         self.transitions_grid[b_cy, b_cx][0] += 1
-        #         #  transition density
-        #         if a_cx == b_cx and a_cy == b_cy:
-        #             self.transitions_grid[a_cy, a_cx][1] += 1
-        #         #  incoming flow
-        #         else:
-        #             self.transitions_grid[b_cy, b_cx][2] += 1
-        #         #  transition quality
-
 
     def calculate_squares(self):
         latLen = int((self.latMax - self.latMin) / self.latStep) + 1  # number of cells on the y-axis
@@ -136,45 +116,73 @@ class FeatureExtractor:
             return 0
         return - self._get_number_of_category(cy,cx, category)/self._get_density(cy, cx)
 
-    def calculate_features(self, categories):
-
-        features = {
+    def calculate_features(self, categories, business_name):
+        self.features = {
             'cy': np.array([]),
             'cx': np.array([]),
             'latitude': np.array([]),
             'longitude': np.array([]),
             'density': np.array([]),
-            'neighbors_entropy' : np.array([]),
-            'competitiveness' : np.array([])
+            'neighbors_entropy': np.array([]),
+            'competitiveness': np.array([]),
+            'area_popularity': np.array([]),
+            'transition_density': np.array([]),
+            'incoming_flow': np.array([]),
+            'average_check_ins': np.array([]),
         }
         #check if vanues_grid calculated
         if self.venues_grid != None:
             for cy in range(len(self.venues_grid)):
                 for cx in range(len(self.venues_grid[cy])):
-                    print(cy,cx)
-                    features['cy'] = np.append(features['cy'], cy)
-                    features['cx'] = np.append(features['cx'], cx)
-                    lat, lon = self._get_cell_coordinates(cy, cx)
-                    features['latitude'] = np.append(features['latitude'], lat)
-                    features['longitude'] = np.append(features['longitude'], lon)
-                    # density
-                    den = self._get_density(cy, cx)
-                    features['density'] = np.append(features['density'], den)
-                    # neighbor entropy
-                    neight_ent = self._get_neighb_entropy(cy,cx)
-                    features['neighbors_entropy']= np.append(features['neighbors_entropy'], neight_ent)
-                    # competitiveness
-                    comp = self._get_competitiveness(cy, cx, categories)
-                    features['competitiveness'] = np.append(features['competitiveness'], comp)
+                    print(cy, cx)
+                    self._calculate_features_for_cell(cy, cx, categories, business_name)
 
-        self.features_dataframe = pd.DataFrame(data=features)
+
+
+        self.features_dataframe = pd.DataFrame(data=self.features)
         # check if transitions processed
         # if self.transitions_grid != None:
         #     pass
 
+    def _calculate_features_for_cell(self, cy, cx, categories, business_name):
+        self.features['cy'] = np.append(self.features['cy'], cy)
+        self.features['cx'] = np.append(self.features['cx'], cx)
+        lat, lon = self._get_cell_coordinates(cy, cx)
+        self.features['latitude'] = np.append(self.features['latitude'], lat)
+        self.features['longitude'] = np.append(self.features['longitude'], lon)
+        # GEOGRAPHIC FEATURES
+        # density
+        den = self._get_density(cy, cx)
+        self.features['density'] = np.append(self.features['density'], den)
+        # neighbor entropy
+        neight_ent = self._get_neighb_entropy(cy, cx)
+        self.features['neighbors_entropy'] = np.append(self.features['neighbors_entropy'], neight_ent)
+        # competitiveness
+        comp = self._get_competitiveness(cy, cx, categories)
+        self.features['competitiveness'] = np.append(self.features['competitiveness'], comp)
+
+        # MOBILITY FEATURES
+        # area popularity
+        self.features['area_popularity'] = np.append(self.features['area_popularity'], self.transitions_grid[cy][cx][0])
+        # transition density
+        self.features['transition_density'] = np.append(self.features['transition_density'], self.transitions_grid[cy][cx][1])
+        # incoming flow
+        self.features['incoming_flow'] = np.append(self.features['incoming_flow'], self.transitions_grid[cy][cx][2])
+
+        # aver check ins for given business
+        aver_check_in = self._get_aver_check_ins_for_business(cy, cx, business_name)
+        self.features['average_check_ins'] = np.append(self.features['average_check_ins'], aver_check_in)
+
 
     def save_into_file(self, filename):
         self.features_dataframe.to_csv(filename)
+
+    def _get_aver_check_ins_for_business(self, cy, cx, name):
+        check_ins = [self.venues[id]['total_check-ins'] for id in self.venues_grid[cy][cx] if self.venues[id]['title'] == name]
+        if len(check_ins) != 0:
+            return sum(check_ins)/len(check_ins)
+        else:
+            return 0
 
 
 
