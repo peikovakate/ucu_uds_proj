@@ -1,6 +1,7 @@
 .ipynb_checkpoints/
 .idea/
 shared_data/
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
