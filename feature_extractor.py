@@ -23,7 +23,7 @@ class FeatureExtractor:
         for index, row in venues.iterrows():
             self.venues[row.venue_id] = row.to_dict()
         # self.venues = venues
-        self.categories = venues.category.unique()
+        self.all_categories = venues.category.unique()
         self.transitions = transitions.values
 
     def _get_coords(self, venue_id):
@@ -160,7 +160,7 @@ class FeatureExtractor:
     def _get_neighb_entropy(self, index):
         entropy = 0
         density = self._get_density(index)
-        for cat in self.categories:
+        for cat in self.all_categories:
             n_c = self._get_number_of_category(index, cat)
             # log(0) = undefined
             if n_c != 0 and density!=0:
