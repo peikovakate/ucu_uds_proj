@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from math import log2
 from geopy import distance
+import json
 
 class FeatureExtractor:
 
@@ -287,7 +288,7 @@ class FeatureExtractor:
         l_category = self.venues[l_id]['category']
         quality = 0
         for p_id in self.venues_grid[area_index]:
-            cp = self.venues[p_id]['total_check-in']
+            cp = self.venues[p_id]['total_check-ins']
             quality += self._prob_of_trans(p_id, l_category, cp)*cp
         return quality
 
@@ -300,5 +301,8 @@ class FeatureExtractor:
                 count += 1
         return count/cp
 
+    def save_areas(self):
+        # dict_json = json.dumps(self.venues_grid)
+        np.save('venues_grid_dict.npy', self.venues_grid)
 
 
