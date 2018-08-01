@@ -265,10 +265,10 @@ class FeatureExtractor:
             return 0
 
     def _get_number_of_business_in_same_area(self, index, name):
-        n = len([self.venues[venue_id] for venue_id in self.venues_grid[index] if self.venues[venue_id] == name])
+        n = len([self.venues[venue_id] for venue_id in self.venues_grid[index] if self.venues[venue_id]['title'] == name])
         # doesn't count the center business if circles
-        # if not self.is_cells:
-        #     n -= 1
+        if not self.is_cells:
+            n -= 1
         return n
 
     def _get_places_around(self, center_coordinates):
@@ -310,4 +310,68 @@ class FeatureExtractor:
         self.business_ids = self._get_ids_of_business()
         n_business = len(self.business_ids)
         self.venues_grid = venues
+        
+    def calc_features_for_taxi(self, taxi, filename):
+        self.taxi_features = {}
+        self.taxi_features['venue_id'] = np.array([])
+        self.taxi_features['area_popularity'] = np.array([])
+        self.taxi_features['transition_density'] = np.array([])
+        self.taxi_features['incoming_flow'] = np.array([])
+        self.taxi_features['n_same_business_in_area'] = np.array([])
+
+        self._calculate_taxi(taxi)
+
+        for business_index in range(len(self.taxi_grid)):
+            self.taxi_features['venue_id'] = np.append(self.taxi_features['venue_id'], self.business_ids[business_index])
+            self.taxi_features['area_popularity'] = np.append(self.taxi_features['area_popularity'], self.taxi_grid[business_index][0])
+            self.taxi_features['transition_density'] = np.append(self.taxi_features['transition_density'],
+                                                              self.taxi_grid[business_index][1])
+            self.taxi_features['incoming_flow'] = np.append(self.taxi_features['incoming_flow'],
+                                                                 self.taxi_grid[business_index][2])
+            self.taxi_features['n_same_business_in_area'] = np.append(self.taxi_features['n_same_business_in_area'],
+                                                            self._get_number_of_business_in_same_area(business_index, self.business_name))
+
+        self.taxi_dataframe = pd.DataFrame(data=self.taxi_features)
+        self.taxi_dataframe.to_csv(filename)
+        
+    def _calculate_taxi(self, taxi_data):
+        self.taxi = taxi_data.values
+        # print('calc taxi')
+        business_n = len(self.business_ids)
+        self.taxi_grid = np.zeros((business_n, 4))
+
+        for i in range(0, len(self.taxi)):
+            if i % 1000 == 0:
+                print(i)
+            a_lat = self.taxi[i][1]  # of A place
+            a_lon = self.taxi[i][2]
+            b_lat = self.taxi[i][3]  # of B place
+            b_lon = self.taxi[i][4]
+            for j in range(len(self.business_ids)):
+                bus_lat = self.venues[self.business_ids[j]]['latitude']
+                bus_lon = self.venues[self.business_ids[j]]['longitude']
+                # a_d_lat = abs(a_lat - bus_lat)
+                # a_d_lon = abs(a_lon - bus_lon)
+                # b_d_lat = abs(b_lat - bus_lat)
+                # b_d_lon = abs(b_lon - bus_lon)
+                # is_around_a = a_d_lat < 0.0025 and a_d_lon < 0.005
+                # is_around_b = b_d_lat < 0.0025 and b_d_lon < 0.005
+                # print(bus_lat, bus_lon)
+                # print(a_lat, a_lon)
+                dist_a = distance.distance((a_lat, a_lon), (bus_lat, bus_lon)).m
+                dist_b = distance.distance((b_lat, b_lon), (bus_lat, bus_lon)).m
+                # print(dist_a, dist_b)
+                is_around_a = (dist_a <= self.radius)
+                is_around_b = (dist_b <= self.radius)
+                # popular
+                if is_around_a or is_around_b:
+                    self.taxi_grid[j][0] += 1
+                # density
+                if is_around_a and is_around_b:
+                    self.taxi_grid[j][1] += 1
+                # inc flow
+                if (not is_around_a) and is_around_b:
+                    self.taxi_grid[j][2] += 1
+
+
 

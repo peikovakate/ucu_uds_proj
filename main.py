@@ -3,6 +3,7 @@ from feature_extractor import FeatureExtractor
 # Reading files
 transitions = pd.read_csv('shared_data/new york_placenet_transitions.txt', sep=',', names=['A_id', 'B_id', 'A_datetime', 'B_datetime'])
 ny_venues = pd.read_csv('shared_data/ny_venues.csv', sep=',')
+taxi = pd.read_csv('shared_data/taxi_100k_4col.csv', sep=',', nrows=10000)
 
 extractor = FeatureExtractor(ny_venues, transitions)
 
@@ -18,8 +19,9 @@ extractor.load_areas()
 
 # extractor.calculate_areas()
 # extractor.save_areas()
-extractor.calculate_transitions()
-extractor.calculate_features()
+# extractor.calculate_transitions()
+# extractor.calculate_features()
 
 # Saving features data into file
-extractor.save_into_file('shared_data/features.csv')
+# extractor.save_into_file('shared_data/features.csv')
+extractor.calc_features_for_taxi(taxi, filename='shared_data/taxi_features_100k.csv')
