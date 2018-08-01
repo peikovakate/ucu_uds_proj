@@ -267,8 +267,8 @@ class FeatureExtractor:
     def _get_number_of_business_in_same_area(self, index, name):
         n = len([self.venues[venue_id] for venue_id in self.venues_grid[index] if self.venues[venue_id] == name])
         # doesn't count the center business if circles
-        if not self.is_cells:
-            n -= 1
+        # if not self.is_cells:
+        #     n -= 1
         return n
 
     def _get_places_around(self, center_coordinates):
@@ -289,20 +289,25 @@ class FeatureExtractor:
         quality = 0
         for p_id in self.venues_grid[area_index]:
             cp = self.venues[p_id]['total_check-ins']
-            quality += self._prob_of_trans(p_id, l_category, cp)*cp
+            quality += self._prob_of_trans(p_id, l_category)
         return quality
 
-    def _prob_of_trans(self, p_id, categoty_l, cp):
+    def _prob_of_trans(self, p_id, categoty_l):
         count = 0
         for i in range(0, len(self.transitions)):
             a_id = self.transitions[i][0]
             b_id = self.transitions[i][1]
             if p_id == a_id and self.venues[b_id]['category'] == categoty_l:
                 count += 1
-        return count/cp
+        return count
 
     def save_areas(self):
         # dict_json = json.dumps(self.venues_grid)
         np.save('venues_grid_dict.npy', self.venues_grid)
 
+    def load_areas(self):
+        venues = np.load("venues_grid_dict.npy")
+        self.business_ids = self._get_ids_of_business()
+        n_business = len(self.business_ids)
+        self.venues_grid = venues
 
