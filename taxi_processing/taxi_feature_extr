@@ -1,0 +1,6 @@
+import pandas as pd
+
+data = pd.read_csv('taxi_needed.csv')
+
+# data = pd.read_csv('taxi_5000k.csv', usecols=[2,3,4,6,7,10,11], index_col=1)
+print(data.columns)

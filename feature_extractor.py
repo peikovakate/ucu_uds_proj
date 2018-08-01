@@ -19,8 +19,10 @@ class FeatureExtractor:
     is_cells = True
     radius = 200
 
-    def __init__(self, venues, transitions):
+    def __init__(self, venues, transitions, taxi_transitions):
         self.features_dataframe = pd.DataFrame()
+        self.taxi_features_dataframe = pd.DataFrame()
+        self.taxi_features = {}
         self.features = {}
         self.venues = {}
 
@@ -30,10 +32,13 @@ class FeatureExtractor:
         self.all_categories = venues.category.unique()
         self.transitions = transitions.values
 
+        self.taxi_transitions = taxi_transitions
+
     def _get_coords(self, venue_id):
         return self.venues[venue_id]['latitude'], self.venues[venue_id]['longitude']
 
     def calculate_areas(self):
+        # wrapper
         print('calc areas')
         if self.is_cells:
             self._calc_rects()
@@ -53,7 +58,8 @@ class FeatureExtractor:
         # [0] - area popularity
         # [1] - transition density
         # [2] - incoming flow
-        # [3] - transition quality
+        # [3] - transition quality -EMPTY
+
         for i in range(0, len(self.transitions)):
             a_id = self.transitions[i][0]  # id of A place
             b_id = self.transitions[i][1]  # id of B place
@@ -78,7 +84,6 @@ class FeatureExtractor:
                 else:
                     self.transitions_grid[b_index][2] += 1
 
-
     def _get_ids_of_business(self):
         ids = [venue['venue_id'] for venue in self.venues.values() if venue['title'] == self.business_name]
         return ids
@@ -98,7 +103,9 @@ class FeatureExtractor:
                 self.venues_grid[index] = np.append(self.venues_grid[index], key)
 
     def _calc_circles(self):
+        # produces venues grid with circle for each venue of the net
         print('calc circles')
+
         self.business_ids = self._get_ids_of_business()
         n_business = len(self.business_ids)
         self.venues_grid = np.zeros(n_business, dtype=np.ndarray)
@@ -253,7 +260,6 @@ class FeatureExtractor:
         n_business = self._get_number_of_business_in_same_area(index, self.business_name)
         self.features['n_same_business_in_area'] = np.append(self.features['n_same_business_in_area'], n_business)
 
-
     def save_into_file(self, filename):
         self.features_dataframe.to_csv(filename)
 
@@ -272,6 +278,7 @@ class FeatureExtractor:
         return n
 
     def _get_places_around(self, center_coordinates):
+        #return array with ids in circle
         # circle area
         places_ids = []
         for key in self.venues:
@@ -304,5 +311,55 @@ class FeatureExtractor:
     def save_areas(self):
         # dict_json = json.dumps(self.venues_grid)
         np.save('venues_grid_dict.npy', self.venues_grid)
+
+
+
+
+
+
+
+
+
+
+
+    def _in_circle(self, center_coords, point_coords):
+        if distance.distance(center_coords, point_coords).m <= self.radius:
+            return True
+        return False
+
+    def _calc_taxi_popularity(self, center_coords):
+        popularity = 0
+        for i,trip in self.taxi_transitions.iterrows():
+            if self._in_circle(center_coords, (trip['pickup_latitude'], trip['pickup_longtitude'])) or self._in_circle(center_coords, (trip['dropoff_latitude'], trip['dropoff_longtitude'])):
+                popularity += trip['passenger_count']
+        return popularity
+
+    def _calc_taxi_inflow(self, center_coords):
+        inflow = 0
+        for i,trip in self.taxi_transitions.iterrows():
+            if not self._in_circle(center_coords, (trip['pickup_latitude'], trip['pickup_longtitude'])):
+                if self._in_circle(center_coords, (trip['dropoff_latitude'], trip['dropoff_longtitude'])):
+                    inflow += trip['passenger_count']
+        return inflow
+
+    def calculate_taxi_features(self):
+        self.taxi_features['venue_id'] = np.array([])
+        self.taxi_features['popularity'] = np.array([])
+        self.taxi_features['inflow'] = np.array([])
+        business_ids = self._get_ids_of_business()
+        for shop in business_ids:
+            np.append(self.taxi_features['venue_id'], shop)
+            popularity = self._calc_taxi_popularity((self.venues[shop]['latitude'], self.venues[shop]['longitude']))
+            np.append(self.taxi_features['popularity'], popularity)
+            inflow = self._calc_taxi_inflow((self.venues[shop]['latitude'], self.venues[shop]['longitude']))
+            np.append(self.taxi_features['inflow'], inflow)
+        self.taxi_features_dataframe = pd.DataFrame(data=self.taxi_features)
+
+    def taxi_save_into_file(self, filename):
+        self.taxi_features_dataframe.to_csv(filename)
+
+
+
+
 
 
